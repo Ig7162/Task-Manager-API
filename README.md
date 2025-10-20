@@ -1,37 +1,82 @@
 ## Task-Manager-API
-AI‑assisted task management REST API built with Flask. It provides user authentication, CRUD for tasks, lightweight ML‑powered task categorization, priority suggestions, and hour estimates.
+AI‑assisted task management REST API built with Flask. It provides authentication, tasks CRUD, and lightweight ML to categorize tasks, suggest priority, and estimate effort.
 
-### Highlights
+### Table of contents
+- [Features](#features)
+- [Tech stack](#tech-stack)
+- [Quickstart](#quickstart)
+- [Configuration](#configuration)
+- [Run](#run)
+- [API reference](#api-reference)
+- [Data model](#data-model)
+- [Project structure](#project-structure)
+- [Development notes](#development-notes)
+- [License](#license)
+
+### Features
 - **Authentication**: JWT-based register/login
 - **Tasks CRUD**: Create, read, update, delete
-- **AI analysis**: Category prediction, confidence score, priority suggestion, hour estimate
+- **AI analysis**: Category prediction + confidence, priority suggestion, hour estimate
 - **Filters & pagination**: Status/priority/category filters, sorting, pages/limits
-- **Deadlines & tags**: ISO8601 deadlines, comma-separated tags stored as list in responses
+- **Deadlines & tags**: ISO8601 deadlines; tags stored as list in responses
 
 ### Tech stack
 - **Backend**: Flask 2.3.x, Flask‑SQLAlchemy
 - **Auth**: Flask‑JWT‑Extended
 - **ML**: scikit‑learn (TF‑IDF + MultinomialNB)
-- **DB**: SQLite by default (configurable via env var)
+- **DB**: SQLite by default (configurable)
 - **Security**: Werkzeug password hashing
 
 ---
 
-## Getting started
+## Quickstart
 
-### Prerequisites
-- Python 3.10+
-
-### Install
+### 1) Install
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Configuration
-Set environment variables as needed (defaults shown):
+### 2) Start the server
+```bash
+python app.py
+```
+Server runs at `http://127.0.0.1:5001`.
 
+### 3) Register and login
+```bash
+# Register
+curl -s -X POST http://127.0.0.1:5001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"strong-password"}'
+
+# Login (copy the access_token from the response)
+curl -s -X POST http://127.0.0.1:5001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"strong-password"}'
+
+# Set your token (paste from the login response)
+export TOKEN="<JWT>"
+```
+
+### 4) Create and list tasks
+```bash
+# Create a task (AI runs automatically)
+curl -s -X POST http://127.0.0.1:5001/api/tasks \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Fix login bug","description":"Investigate 500 on POST /login"}'
+
+# List tasks
+curl -s http://127.0.0.1:5001/api/tasks \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## Configuration
+Environment variables (defaults shown):
 ```bash
 # REQUIRED in production – change this!
 export JWT_SECRET_KEY="your-secret-key-change-in-production"
@@ -39,143 +84,48 @@ export JWT_SECRET_KEY="your-secret-key-change-in-production"
 # Optional: override database (defaults to a local SQLite file)
 export DATABASE_URL="sqlite:///task_database.db"
 ```
-
 Notes:
-- On first run, the database and tables are created automatically.
-- The first import of the AI service will train a tiny model and save it to `models/task_classifier.pkl` (the `models/` folder is created if missing).
+- On first run, the DB/tables are created automatically.
+- The first AI service load trains a small model and saves it to `models/task_classifier.pkl`.
 
-### Run the API
+---
+
+## Run
 ```bash
 python app.py
 ```
-
-Server starts on `http://127.0.0.1:5001`.
+Base URL: `http://127.0.0.1:5001`
 
 ---
 
 ## API reference
 
-Base URL: `http://127.0.0.1:5001`
+Use `Authorization: Bearer <JWT>` for protected endpoints.
 
-Auth: Use `Authorization: Bearer <JWT>` for protected endpoints.
+### Endpoints overview
 
-### Auth
+| Method | Path                         | Description                                | Auth |
+|-------:|------------------------------|--------------------------------------------|:----:|
+| POST   | `/api/auth/register`         | Register user                               |  ✗   |
+| POST   | `/api/auth/login`            | Login, returns JWT                          |  ✗   |
+| GET    | `/api/tasks`                 | List tasks (filters/sort/pagination)        |  ✓   |
+| POST   | `/api/tasks`                 | Create task (with AI analysis)              |  ✓   |
+| GET    | `/api/tasks/<task_id>`       | Get task by id                              |  ✓   |
+| PUT    | `/api/tasks/<task_id>`       | Update task                                 |  ✓   |
+| DELETE | `/api/tasks/<task_id>`       | Delete task                                 |  ✓   |
+| PATCH  | `/api/tasks/<task_id>/status`| Update only status                          |  ✓   |
+| POST   | `/api/analyze/task`          | Analyze free-form task text (AI only)       |  ✗   |
 
-- POST `/api/auth/register` — Create user
-  - Body:
-    ```json
-    { "email": "user@example.com", "password": "strong-password" }
-    ```
-  - 201 Created:
-    ```json
-    {
-      "message": "User created successfully",
-      "user": { "id": "...", "email": "user@example.com", "created_at": "..." }
-    }
-    ```
-
-- POST `/api/auth/login` — Obtain JWT
-  - Body:
-    ```json
-    { "email": "user@example.com", "password": "strong-password" }
-    ```
-  - 200 OK:
-    ```json
-    {
-      "message": "Login successful",
-      "access_token": "<JWT>",
-      "user": { "id": "...", "email": "user@example.com" }
-    }
-    ```
-
-### Tasks (JWT required)
-
-- GET `/api/tasks` — List tasks (with filters, sorting, pagination)
-  - Query params (optional):
-    - `status` in [`todo`, `in_progress`, `completed`]
-    - `priority` in [1..5]
-    - `category` (e.g., `work`, `personal`, `meeting`, `general`)
-    - `sort_by` in [`created_at` (default), `deadline`, `priority`]
-    - `page` (default 1), `limit` (default 10)
-  - 200 OK:
-    ```json
-    {
-      "tasks": [ { "id": "...", "title": "...", "status": "todo" } ],
-      "total": 1,
-      "page": 1,
-      "pages": 1
-    }
-    ```
-
-- POST `/api/tasks` — Create a task (runs AI analysis)
-  - Body (minimum):
-    ```json
-    { "title": "Fix login bug", "description": "Investigate 500 on POST /login" }
-    ```
-  - 201 Created:
-    ```json
-    {
-      "message": "Task created successfully",
-      "task": {
-        "id": "...",
-        "title": "Fix login bug",
-        "description": "Investigate 500 on POST /login",
-        "category": "work",
-        "priority": 5,
-        "estimated_hours": 2.0,
-        "deadline": null,
-        "status": "todo",
-        "tags": [],
-        "created_at": "...",
-        "updated_at": "..."
-      },
-      "ai_analysis": {
-        "category": "work",
-        "category_confidence": 0.9,
-        "priority": 5,
-        "estimated_hours": 2.0
-      }
-    }
-    ```
-
-- GET `/api/tasks/<task_id>` — Get a task
-
-- PUT `/api/tasks/<task_id>` — Update a task
-  - Updatable fields: `title`, `description`, `priority`, `status`, `deadline` (ISO8601), `tags` (array of strings)
-
-- DELETE `/api/tasks/<task_id>` — Delete a task
-
-- PATCH `/api/tasks/<task_id>/status` — Update only the status
-  - Body: `{ "status": "in_progress" }`
-
-### AI analysis (public)
-
-- POST `/api/analyze/task` — Analyze free-form task text
-  - Body:
-    ```json
-    { "title": "Review PR for feature X", "description": "Look for edge cases" }
-    ```
-  - 200 OK:
-    ```json
-    {
-      "title": "Review PR for feature X",
-      "predicted_category": "work",
-      "category_confidence": 0.78,
-      "predicted_priority": 3,
-      "estimated_hours": 2.0
-    }
-    ```
+Filters for `GET /api/tasks`:
+- **status**: `todo` | `in_progress` | `completed`
+- **priority**: 1..5
+- **category**: `work` | `personal` | `meeting` | `general`
+- **sort_by**: `created_at` (default) | `deadline` | `priority`
+- **page/limit**: pagination (defaults: 1 / 10)
 
 Authorization header example:
 ```bash
-curl -H "Authorization: Bearer <JWT>" http://127.0.0.1:5001/api/tasks
-```
-
-Common error responses:
-```json
-{ "error": "Email and password required" }
-{ "error": "Title is required" }
-{ "error": "Task not found" }
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:5001/api/tasks
 ```
 
 ---
@@ -203,14 +153,6 @@ Common error responses:
 
 ---
 
-## Development notes
-- Default config is development; server runs on port `5001`.
-- JWT access tokens expire after 30 days by default.
-- Change `JWT_SECRET_KEY` before deploying.
-- The ML classifier is intentionally small and for demo purposes only.
-
----
-
 ## Project structure
 ```text
 .
@@ -224,6 +166,14 @@ Common error responses:
 ├── requirements.txt      # Python dependencies
 └── README.md
 ```
+
+---
+
+## Development notes
+- Default config is development; server runs on port `5001`.
+- JWT access tokens expire after 30 days by default.
+- Change `JWT_SECRET_KEY` before deploying.
+- The ML classifier is intentionally small and for demo purposes only.
 
 ---
 
