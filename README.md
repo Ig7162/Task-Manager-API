@@ -1,9 +1,14 @@
+## Welcome! This is my first ever coding project in github
+
+
+
+
 ## Task-Manager-API
-This is a AI‑assisted task management REST API built with Flask. It provides authentication, tasks CRUD, and lightweight ML to categorize tasks, suggest priority, and estimate effort. My first coding project!
+This is a AI‑assisted task management assisted REST API built with Flask. It provides authentication, tasks CRUD, and lightweight ML to categorize tasks, suggest priority, and estimate effort. My first coding project!
 
 ### Table of contents
 - [Features](#features)
-- [Tech stack](#tech-stack)
+- [Tech stack](#tech-stack/Languages)
 - [Quickstart](#quickstart)
 - [Configuration](#configuration)
 - [Run](#run)
@@ -20,7 +25,7 @@ This is a AI‑assisted task management REST API built with Flask. It provides a
 - **Filters & pagination**: Status/priority/category filters, sorting, pages/limits
 - **Deadlines & tags**: ISO8601 deadlines; tags stored as list in responses
 
-### Tech stack/ Languages
+### Tech stack/Languages
 - **Backend**: Flask 2.3.x, Flask‑SQLAlchemy
 - **Auth**: Flask‑JWT‑Extended
 - **ML**: scikit‑learn (TF‑IDF + MultinomialNB)
@@ -51,7 +56,7 @@ curl -s -X POST http://127.0.0.1:5001/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"strong-password"}'
 
-# Login (copy the access_token from the response)
+# Login (this copies the access_token from the response)
 curl -s -X POST http://127.0.0.1:5001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"strong-password"}'
@@ -62,13 +67,13 @@ export TOKEN="<JWT>"
 
 ### 4) Create and list tasks
 ```bash
-# Create a task (AI runs automatically)
+# Create a task (The AI then runs automatically)
 curl -s -X POST http://127.0.0.1:5001/api/tasks \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"title":"Fix login bug","description":"Investigate 500 on POST /login"}'
 
-# List tasks
+# List the tasks
 curl -s http://127.0.0.1:5001/api/tasks \
   -H "Authorization: Bearer $TOKEN"
 ```
@@ -78,7 +83,7 @@ curl -s http://127.0.0.1:5001/api/tasks \
 ## Configuration
 Environment variables (defaults shown):
 ```bash
-# REQUIRED in production – change this!
+# REQUIRED in production – remember to change this!
 export JWT_SECRET_KEY="your-secret-key-change-in-production"
 
 # Optional: override database (defaults to a local SQLite file)
