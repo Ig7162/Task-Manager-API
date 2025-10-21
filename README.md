@@ -1,4 +1,4 @@
-## Welcome! This is my first ever coding project in github
+## Welcome! This is my first ever coding project in github( I did have some help making the ReadMe with other people and also a bit of AI)
 
 
 
